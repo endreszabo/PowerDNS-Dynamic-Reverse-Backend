@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 """
 PowerDNS pipe backend for generating reverse DNS entries and their
@@ -248,5 +248,10 @@ def parse_config(config_path):
 if __name__ == '__main__':
     import sys
 
-    prefixes, rtree = parse_config(CONFIG)
+    if len(sys.argv) > 1:
+        config_path = sys.argv[1]
+    else:
+        config_path = CONFIG
+
+    prefixes, rtree = parse_config(config_path)
     sys.exit(parse(prefixes, rtree, sys.stdin, sys.stdout))
