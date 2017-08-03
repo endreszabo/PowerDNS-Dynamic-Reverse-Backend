@@ -140,16 +140,16 @@ def parse(fd, out):
 
         request = line.split('\t')
         if request[0] == 'AXFR':
-                if not lastnet == 0:
-                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
-                                (lastnet['forward'], 'IN', lastnet['ttl'], qid, lastnet['dns'], lastnet['email'], time.strftime('%Y%m%d%H'))
-                        lastnet=lastnet
-                        for ns in lastnet['nameserver']:
-                                print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
-                                        (lastnet['forward'], 'IN', lastnet['ttl'], qid, ns)
-                print >>out, 'END'
-                out.flush()
-                continue
+            if not lastnet == 0:
+                print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
+                        (lastnet['forward'], 'IN', lastnet['ttl'], qid, lastnet['dns'], lastnet['email'], time.strftime('%Y%m%d%H'))
+                lastnet=lastnet
+                for ns in lastnet['nameserver']:
+                    print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
+                            (lastnet['forward'], 'IN', lastnet['ttl'], qid, ns)
+            print >>out, 'END'
+            out.flush()
+            continue
         if len(request) < 6:
             print >>out, 'LOG\tPowerDNS sent unparsable line'
             print >>out, 'FAIL'
@@ -158,9 +158,9 @@ def parse(fd, out):
 
 
         try:
-                kind, qname, qclass, qtype, qid, ip = request
+            kind, qname, qclass, qtype, qid, ip = request
         except:
-                kind, qname, qclass, qtype, qid, ip, their_ip = request
+            kind, qname, qclass, qtype, qid, ip, their_ip = request
         #debug
         #print >>out, 'LOG\tPowerDNS sent qname>>%s<< qtype>>%s<< qclass>>%s<< qid>>%s<< ip>>%s<<' % (qname, qtype, qclass, qid, ip)
 
@@ -227,27 +227,27 @@ def parse(fd, out):
 
 
         if qtype in ['SOA', 'ANY', 'NS']:
-                for range, key in PREFIXES.iteritems():
-                        if qname == key['domain']:
-                                if not qtype == 'NS':
-                                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
-                                                (key['domain'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
-                                        lastnet=key
-                                if qtype in ['ANY', 'NS']:
-                                        for ns in key['nameserver']:
-                                                print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
-                                                        (key['domain'], qclass, key['ttl'], qid, ns)
-                                break
-                        elif qname == key['forward']:
-                                if not qtype == 'NS':
-                                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
-                                                (key['forward'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
-                                        lastnet=key
-                                if qtype in ['ANY', 'NS']:
-                                        for ns in key['nameserver']:
-                                                print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
-                                                        (key['forward'], qclass, key['ttl'], qid, ns)
-                                break
+            for range, key in PREFIXES.iteritems():
+                if qname == key['domain']:
+                    if not qtype == 'NS':
+                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
+                                (key['domain'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
+                        lastnet=key
+                    if qtype in ['ANY', 'NS']:
+                        for ns in key['nameserver']:
+                            print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
+                                    (key['domain'], qclass, key['ttl'], qid, ns)
+                    break
+                elif qname == key['forward']:
+                    if not qtype == 'NS':
+                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
+                                (key['forward'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
+                        lastnet=key
+                    if qtype in ['ANY', 'NS']:
+                        for ns in key['nameserver']:
+                            print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
+                                    (key['forward'], qclass, key['ttl'], qid, ns)
+                    break
 
         print >>out, 'END'
         out.flush()
