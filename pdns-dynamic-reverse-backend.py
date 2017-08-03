@@ -125,9 +125,9 @@ def parse(fd, out):
         syslog.syslog('received "%s", expected "HELO"' % (line,))
         sys.exit(1)
     else:
-    	print >>out, 'OK\t%s ready with %d prefixes configured' % (os.path.basename(sys.argv[0]),len(PREFIXES))
+        print >>out, 'OK\t%s ready with %d prefixes configured' % (os.path.basename(sys.argv[0]),len(PREFIXES))
         out.flush()
-    	syslog.syslog('received HELO from PowerDNS')
+        syslog.syslog('received HELO from PowerDNS')
 
     lastnet=0
     while True:
@@ -136,20 +136,20 @@ def parse(fd, out):
             break
 
         #syslog.syslog('<<< %s' % (line,))
-	#print >>out, 'LOG\tline: %s' % line
+        #print >>out, 'LOG\tline: %s' % line
 
         request = line.split('\t')
-	if request[0] == 'AXFR':
-		if not lastnet == 0:
-			print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
-				(lastnet['forward'], 'IN', lastnet['ttl'], qid, lastnet['dns'], lastnet['email'], time.strftime('%Y%m%d%H'))
-			lastnet=lastnet
-			for ns in lastnet['nameserver']:
-				print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
-					(lastnet['forward'], 'IN', lastnet['ttl'], qid, ns)
-		print >>out, 'END'
-        	out.flush()
-		continue
+        if request[0] == 'AXFR':
+                if not lastnet == 0:
+                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
+                                (lastnet['forward'], 'IN', lastnet['ttl'], qid, lastnet['dns'], lastnet['email'], time.strftime('%Y%m%d%H'))
+                        lastnet=lastnet
+                        for ns in lastnet['nameserver']:
+                                print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
+                                        (lastnet['forward'], 'IN', lastnet['ttl'], qid, ns)
+                print >>out, 'END'
+                out.flush()
+                continue
         if len(request) < 6:
             print >>out, 'LOG\tPowerDNS sent unparsable line'
             print >>out, 'FAIL'
@@ -158,14 +158,14 @@ def parse(fd, out):
 
 
         try:
-		kind, qname, qclass, qtype, qid, ip = request
-	except:
-		kind, qname, qclass, qtype, qid, ip, their_ip = request
-	#debug
-	#print >>out, 'LOG\tPowerDNS sent qname>>%s<< qtype>>%s<< qclass>>%s<< qid>>%s<< ip>>%s<<' % (qname, qtype, qclass, qid, ip)
+                kind, qname, qclass, qtype, qid, ip = request
+        except:
+                kind, qname, qclass, qtype, qid, ip, their_ip = request
+        #debug
+        #print >>out, 'LOG\tPowerDNS sent qname>>%s<< qtype>>%s<< qclass>>%s<< qid>>%s<< ip>>%s<<' % (qname, qtype, qclass, qid, ip)
 
         if qtype in ['AAAA', 'ANY']:
-	    #print >>out, 'LOG\twe got a AAAA query'
+            #print >>out, 'LOG\twe got a AAAA query'
             for range, key in PREFIXES.iteritems():
                 if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
@@ -177,9 +177,9 @@ def parse(fd, out):
                         ipv6 = netaddr.IPAddress(long(range.value) + long(node))
                         print >>out, 'DATA\t%s\t%s\tAAAA\t%d\t%s\t%s' % \
                             (qname, qclass, key['ttl'], qid, ipv6)
-		        break
+                        break
         if qtype in ['A', 'ANY']:
-	    #print >>out, 'LOG\twe got a A query'
+            #print >>out, 'LOG\twe got a A query'
             for range, key in PREFIXES.iteritems():
                 if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
@@ -194,13 +194,13 @@ def parse(fd, out):
                 break
 
         if qtype in ['PTR', 'ANY'] and qname.endswith('.ip6.arpa'):
-	    #print >>out, 'LOG\twe got a PTR query'
+            #print >>out, 'LOG\twe got a PTR query'
             ptr = qname.split('.')[:-2][::-1]
             ipv6 = ':'.join(''.join(ptr[x:x+4]) for x in xrange(0, len(ptr), 4))
             try:
-		ipv6 = netaddr.IPAddress(ipv6)
-	    except:
-		ipv6 = netaddr.IPAddress('::')
+                ipv6 = netaddr.IPAddress(ipv6)
+            except:
+                ipv6 = netaddr.IPAddress('::')
             node=rtree.search_best(str(ipv6))
             if node:
                 range, key = node.data['prefix'], PREFIXES[node.data['prefix']]
@@ -210,13 +210,13 @@ def parse(fd, out):
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward'])
 
         if qtype in ['PTR', 'ANY'] and qname.endswith('.in-addr.arpa'):
-	    #print >>out, 'LOG\twe got a PTR query'
+            #print >>out, 'LOG\twe got a PTR query'
             ptr = qname.split('.')[:-2][::-1]
-	    ipv4='.'.join(''.join(ptr[x:x+1]) for x in xrange(0, len(ptr), 1))
+            ipv4='.'.join(''.join(ptr[x:x+1]) for x in xrange(0, len(ptr), 1))
             try:
-		ipv4 = netaddr.IPAddress(ipv4)
-	    except:
-		ipv4 = netaddr.IPAddress('127.0.0.1')
+                ipv4 = netaddr.IPAddress(ipv4)
+            except:
+                ipv4 = netaddr.IPAddress('127.0.0.1')
             node=rtree.search_best(str(ipv4))
             if node:
                 range, key = node.data['prefix'], PREFIXES[node.data['prefix']]
@@ -226,28 +226,28 @@ def parse(fd, out):
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward'])
 
 
-	if qtype in ['SOA', 'ANY', 'NS']:
-		for range, key in PREFIXES.iteritems():
-			if qname == key['domain']:
-				if not qtype == 'NS':
-					print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
-						(key['domain'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
-					lastnet=key
-				if qtype in ['ANY', 'NS']:
-					for ns in key['nameserver']:
-						print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
-							(key['domain'], qclass, key['ttl'], qid, ns)
-				break
-			elif qname == key['forward']:
-				if not qtype == 'NS':
-					print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
-						(key['forward'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
-					lastnet=key
-				if qtype in ['ANY', 'NS']:
-					for ns in key['nameserver']:
-						print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
-							(key['forward'], qclass, key['ttl'], qid, ns)
-				break
+        if qtype in ['SOA', 'ANY', 'NS']:
+                for range, key in PREFIXES.iteritems():
+                        if qname == key['domain']:
+                                if not qtype == 'NS':
+                                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
+                                                (key['domain'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
+                                        lastnet=key
+                                if qtype in ['ANY', 'NS']:
+                                        for ns in key['nameserver']:
+                                                print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
+                                                        (key['domain'], qclass, key['ttl'], qid, ns)
+                                break
+                        elif qname == key['forward']:
+                                if not qtype == 'NS':
+                                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
+                                                (key['forward'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
+                                        lastnet=key
+                                if qtype in ['ANY', 'NS']:
+                                        for ns in key['nameserver']:
+                                                print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
+                                                        (key['forward'], qclass, key['ttl'], qid, ns)
+                                break
 
         print >>out, 'END'
         out.flush()
