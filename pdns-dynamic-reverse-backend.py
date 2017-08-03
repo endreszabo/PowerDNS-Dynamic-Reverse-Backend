@@ -66,19 +66,6 @@ class HierDict(dict):
 DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz'
 CONFIG = 'dynrev.yml'
 
-with open(CONFIG) as config_file:
-    config_dict = yaml.load(config_file)
-
-DEFAULTS = config_dict.get('defaults', {})
-PREFIXES = { netaddr.IPNetwork(prefix) : HierDict(DEFAULTS, info) for prefix, info in config_dict['prefixes'].items()}
-
-rtree=radix.Radix()
-
-for prefix in PREFIXES.keys():
-    node=rtree.add(str(prefix))
-    node.data['prefix']=prefix
-
-
 def base36encode(n):
     s = ''
     while True:
@@ -97,7 +84,7 @@ def base36decode(s):
 
 
 
-def parse(fd, out):
+def parse(prefixes, rtree, fd, out):
     line = fd.readline().strip()
     if not line.startswith('HELO'):
         print >>out, 'FAIL'
@@ -105,7 +92,7 @@ def parse(fd, out):
         syslog.syslog('received "%s", expected "HELO"' % (line,))
         sys.exit(1)
     else:
-        print >>out, 'OK\t%s ready with %d prefixes configured' % (os.path.basename(sys.argv[0]),len(PREFIXES))
+        print >>out, 'OK\t%s ready with %d prefixes configured' % (os.path.basename(sys.argv[0]),len(prefixes))
         out.flush()
         syslog.syslog('received HELO from PowerDNS')
 
@@ -116,7 +103,7 @@ def parse(fd, out):
             break
 
         #syslog.syslog('<<< %s' % (line,))
-        #print >>out, 'LOG\tline: %s' % line
+        print >>out, 'LOG\tline: %s' % line
 
         request = line.split('\t')
         if request[0] == 'AXFR':
@@ -142,11 +129,11 @@ def parse(fd, out):
         except:
             kind, qname, qclass, qtype, qid, ip, their_ip = request
         #debug
-        #print >>out, 'LOG\tPowerDNS sent qname>>%s<< qtype>>%s<< qclass>>%s<< qid>>%s<< ip>>%s<<' % (qname, qtype, qclass, qid, ip)
+        print >>out, 'LOG\tPowerDNS sent qname>>%s<< qtype>>%s<< qclass>>%s<< qid>>%s<< ip>>%s<<' % (qname, qtype, qclass, qid, ip)
 
         if qtype in ['AAAA', 'ANY']:
             #print >>out, 'LOG\twe got a AAAA query'
-            for range, key in PREFIXES.iteritems():
+            for range, key in prefixes.iteritems():
                 if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
@@ -160,7 +147,7 @@ def parse(fd, out):
                         break
         if qtype in ['A', 'ANY']:
             #print >>out, 'LOG\twe got a A query'
-            for range, key in PREFIXES.iteritems():
+            for range, key in prefixes.iteritems():
                 if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
@@ -183,7 +170,7 @@ def parse(fd, out):
                 ipv6 = netaddr.IPAddress('::')
             node=rtree.search_best(str(ipv6))
             if node:
-                range, key = node.data['prefix'], PREFIXES[node.data['prefix']]
+                range, key = node.data['prefix'], prefixes[node.data['prefix']]
                 node = ipv6.value - range.value
                 node = base36encode(node)
                 print >>out, 'DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s' % \
@@ -199,7 +186,7 @@ def parse(fd, out):
                 ipv4 = netaddr.IPAddress('127.0.0.1')
             node=rtree.search_best(str(ipv4))
             if node:
-                range, key = node.data['prefix'], PREFIXES[node.data['prefix']]
+                range, key = node.data['prefix'], prefixes[node.data['prefix']]
                 node = ipv4.value - range.value
                 node = base36encode(node)
                 print >>out, 'DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s' % \
@@ -207,7 +194,7 @@ def parse(fd, out):
 
 
         if qtype in ['SOA', 'ANY', 'NS']:
-            for range, key in PREFIXES.iteritems():
+            for range, key in prefixes.iteritems():
                 if qname == key['domain']:
                     if not qtype == 'NS':
                         print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
@@ -235,11 +222,31 @@ def parse(fd, out):
     syslog.syslog('terminating')
     return 0
 
-for zone in PREFIXES:
-    if not PREFIXES[zone].has_key('domain'):
-        from IPy import IP
-        PREFIXES[zone]['domain']=IP(str(zone.cidr)).reverseName()[:-1]
+
+def parse_config(config_path):
+
+    with open(config_path) as config_file:
+        config_dict = yaml.load(config_file)
+
+    defaults = config_dict.get('defaults', {})
+    prefixes = { netaddr.IPNetwork(prefix) : HierDict(defaults, info) for prefix, info in config_dict['prefixes'].items()}
+
+    for zone in prefixes:
+        if not prefixes[zone].has_key('domain'):
+            from IPy import IP
+            prefixes[zone]['domain']=IP(str(zone.cidr)).reverseName()[:-1]
+
+    rtree=radix.Radix()
+
+    for prefix in prefixes.keys():
+        node=rtree.add(str(prefix))
+        node.data['prefix']=prefix
+
+    return prefixes, rtree
+
 
 if __name__ == '__main__':
     import sys
-    sys.exit(parse(sys.stdin, sys.stdout))
+
+    prefixes, rtree = parse_config(CONFIG)
+    sys.exit(parse(prefixes, rtree, sys.stdin, sys.stdout))

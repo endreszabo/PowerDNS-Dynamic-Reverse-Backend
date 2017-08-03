@@ -1,0 +1,5 @@
+HELO
+Q	1.0.254.169.in-addr.arpa	IN	SOA	-1	203.0.113.210
+Q	0.254.169.in-addr.arpa	IN	SOA	-1	203.0.113.210
+Q	254.169.in-addr.arpa	IN	SOA	-1	203.0.113.210
+Q	1.0.254.169.in-addr.arpa	IN	PTR	-1	203.0.113.210
