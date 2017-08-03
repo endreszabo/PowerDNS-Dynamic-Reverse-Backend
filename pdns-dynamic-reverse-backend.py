@@ -44,6 +44,7 @@ import time
 import netaddr
 import IPy
 import radix
+import yaml
 
 syslog.openlog(os.path.basename(sys.argv[0]), syslog.LOG_PID)
 syslog.syslog('starting up')
@@ -63,34 +64,13 @@ class HierDict(dict):
             return self._parent[name]
 
 DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz'
-DEFAULTS = {                      # ranges we serve
-        'email' : 'hostmaster.example.com',
-        'dns' : 'ns0.example.com',
-        'ttl' : 300,
-        'version' : 6,
-        'nameserver': [
-            'ns0.example.com',
-            'ns1.example.com',
-        ],
-}
+CONFIG = 'dynrev.yml'
 
-PREFIXES = {
-    #link local subnets:
-    netaddr.IPNetwork('169.254.0.0/16'):          HierDict(DEFAULTS,{'prefix': 'u', 'postfix': '-l0', 'forward': 'y7.hu', 'version': 4}),
-    netaddr.IPNetwork('fe80::/16'):               HierDict(DEFAULTS,{'prefix': 'u', 'postfix': '-l1', 'forward': 'y7.hu',}),
+with open(CONFIG) as config_file:
+    config_dict = yaml.load(config_file)
 
-    #site local unallocated subnets:
-    netaddr.IPNetwork('fd00::/8'):                HierDict(DEFAULTS,{'prefix': 'u', 'postfix': '-i1', 'forward': 'y7.hu',}),
-    netaddr.IPNetwork('192.168.0.0/16'):          HierDict(DEFAULTS,{'prefix': 'u', 'postfix': '-i2', 'forward': 'y7.hu', 'version': 4}),
-    netaddr.IPNetwork('172.16.0.0/12'):           HierDict(DEFAULTS,{'prefix': 'u', 'postfix': '-i3', 'forward': 'y7.hu', 'version': 4}),
-    netaddr.IPNetwork('10.0.0.0/8'):              HierDict(DEFAULTS,{'prefix': 'u', 'postfix': '-i4', 'forward': 'y7.hu', 'version': 4}),
-
-    #test networks:
-    netaddr.IPNetwork('192.0.2.0/24'):            HierDict(DEFAULTS,{'prefix': 'u', 'postfix': '-r0', 'forward': 'y7.hu', 'version': 4}),
-    netaddr.IPNetwork('44.128.0.0/16'):           HierDict(DEFAULTS,{'prefix': 'u', 'postfix': '-i0', 'forward': 'y7.hu', 'version': 4}),
-    netaddr.IPNetwork('44.128.0.0/24'):           HierDict(DEFAULTS,{'prefix': 'h', 'postfix': '-s0i0', 'forward': 'y7.hu', 'version': 4}),
-    netaddr.IPNetwork('44.128.1.0/24'):           HierDict(DEFAULTS,{'prefix': 'h', 'postfix': '-s1i0', 'forward': 'y7.hu', 'version': 4}),
-}
+DEFAULTS = config_dict.get('defaults', {})
+PREFIXES = { netaddr.IPNetwork(prefix) : HierDict(DEFAULTS, info) for prefix, info in config_dict['prefixes'].items()}
 
 rtree=radix.Radix()
 
