@@ -1,0 +1,18 @@
+defaults:
+  email : 'hostmaster.example.com'
+  dns : 'ns0.example.com'
+  ttl : 300
+  version : 6
+  nameserver:
+    - ns0.example.com
+    - ns1.example.com
+prefixes:
+  '169.254.0.0/16':
+    prefix: 'u'
+    postfix: '-l0'
+    forward: y7.hu
+    version: 4
+  'fd00::/8':
+    prefix: 'u'
+    postfix: '-i1'
+    forward: 'y7.hu'
