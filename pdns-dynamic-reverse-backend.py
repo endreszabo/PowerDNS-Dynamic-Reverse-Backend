@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#
+
 """
 PowerDNS pipe backend for generating reverse DNS entries and their
 forward lookup.
@@ -37,6 +37,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
 import sys, os
 import re
 import syslog
@@ -46,13 +47,14 @@ import IPy
 import radix
 import yaml
 
+CONFIG = 'dynrev.yml'
+DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz'
+
+#xrange() backwards compatibility for python3
 try:
     xrange
 except NameError:
     xrange = range
-
-syslog.openlog(os.path.basename(sys.argv[0]), syslog.LOG_PID)
-syslog.syslog('starting up')
 
 class HierDict(dict):
     def __init__(self, parent=None, default=None):
@@ -67,9 +69,6 @@ class HierDict(dict):
             if self._parent is None:
                 raise
             return self._parent[name]
-
-DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz'
-CONFIG = 'dynrev.yml'
 
 def base36encode(n):
     s = ''
@@ -86,8 +85,6 @@ def base36decode(s):
         r = DIGITS.index(s[i])
         n += r * (len(DIGITS) ** i)
     return n
-
-
 
 def parse(prefixes, rtree, fd, out):
     print(prefixes)
@@ -129,10 +126,10 @@ def parse(prefixes, rtree, fd, out):
             out.flush()
             continue
 
-
+        #q&d handling of different pdns pipe backend protocol versions
         try:
             kind, qname, qclass, qtype, qid, ip = request
-        except:
+        except ValueError:
             kind, qname, qclass, qtype, qid, ip, their_ip = request
         #debug
         out.write("LOG\tPowerDNS sent qname>>%s<< qtype>>%s<< qclass>>%s<< qid>>%s<< ip>>%s<<" % (qname, qtype, qclass, qid, ip))
@@ -152,6 +149,7 @@ def parse(prefixes, rtree, fd, out):
                         out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
                             (qname, qclass, key['ttl'], qid, ipv6))
                         break
+
         if qtype in ['A', 'ANY']:
             #print >>out, 'LOG\twe got a A query'
             for key in prefixes.keys():
@@ -183,7 +181,6 @@ def parse(prefixes, rtree, fd, out):
                 node = base36encode(node)
                 out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
-
         if qtype in ['PTR', 'ANY'] and qname.endswith('.in-addr.arpa'):
             #print >>out, 'LOG\twe got a PTR query'
             ptr = qname.split('.')[:-2][::-1]
@@ -199,8 +196,6 @@ def parse(prefixes, rtree, fd, out):
                 node = base36encode(node)
                 out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
-
-
         if qtype in ['SOA', 'ANY', 'NS']:
             for range in prefixes.keys():
                 key=prefixes[range]
@@ -231,9 +226,7 @@ def parse(prefixes, rtree, fd, out):
     syslog.syslog('terminating')
     return 0
 
-
 def parse_config(config_path):
-
     with open(config_path) as config_file:
         config_dict = yaml.load(config_file)
 
@@ -253,9 +246,9 @@ def parse_config(config_path):
 
     return prefixes, rtree
 
-
 if __name__ == '__main__':
-    import sys
+    syslog.openlog(os.path.basename(sys.argv[0]), syslog.LOG_PID)
+    syslog.syslog('starting up')
 
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
