@@ -47,14 +47,23 @@ import IPy
 import radix
 import yaml
 
+LOGLEVEL = 2
 CONFIG = 'dynrev.yml'
+
+VERSION = 0.9
 DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz'
+SCRIPTNAME=os.path.basename(sys.argv[0])
 
 #xrange() backwards compatibility for python3
 try:
     xrange
 except NameError:
     xrange = range
+try:
+    long
+except NameError:
+    long = int
+
 
 class HierDict(dict):
     def __init__(self, parent=None, default=None):
@@ -87,17 +96,27 @@ def base36decode(s):
     return n
 
 def parse(prefixes, rtree, fd, out):
-    print(prefixes)
+    def log(level=LOGLEVEL, message=None, **kwargs):
+        if level<=LOGLEVEL:
+            message="%s; %s" % (message, ", ".join(filter(None, map(lambda k: "%s=%s" % (k, repr(str(kwargs[k]))), kwargs.keys()))))
+            out.write("LOG\t%s\n" % message)
+            syslog.syslog(message)
+    def logd(level=LOGLEVEL, message=None, kwargs={}):
+        if level<=LOGLEVEL:
+            message="%s; %s" % (message, ", ".join(filter(None, map(lambda k: "%s=%s" % (k, repr(str(kwargs[k]))), kwargs.keys()))))
+            out.write("LOG\t%s\n" % message)
+            syslog.syslog(message)
+    log(0,"starting up")
     line = fd.readline().strip()
     if not line.startswith('HELO'):
         out.write("FAIL\n")
         out.flush()
-        syslog.syslog("received '%s', expected 'HELO'" % (line,))
+        log(1,"unknown line received from powerdns, expected HELO", line=line)
         sys.exit(1)
     else:
-        out.write("OK\t%s ready with %d prefixes configured\n" % (os.path.basename(sys.argv[0]),len(prefixes)))
+        out.write("OK\t%s ready with %d prefixes configured\n" % (SCRIPTNAME, len(prefixes)))
+        log(0,'powerdns HELO received, ready to process requests', prefixes_count=len(prefixes))
         out.flush()
-        syslog.syslog("received HELO from PowerDNS")
 
     lastnet=0
     while True:
@@ -106,7 +125,7 @@ def parse(prefixes, rtree, fd, out):
             break
 
         #syslog.syslog('<<< %s' % (line,))
-        out.write("LOG\tline: %s\n" % line)
+        log(4, "got input line from powerdns", line=line)
 
         request = line.split('\t')
         if request[0] == 'AXFR':
@@ -131,43 +150,37 @@ def parse(prefixes, rtree, fd, out):
             kind, qname, qclass, qtype, qid, ip = request
         except ValueError:
             kind, qname, qclass, qtype, qid, ip, their_ip = request
-        #debug
-        out.write("LOG\tPowerDNS sent qname>>%s<< qtype>>%s<< qclass>>%s<< qid>>%s<< ip>>%s<<" % (qname, qtype, qclass, qid, ip))
+        log(2, "parsed query", qname=qname, qtype=qtype, qclass=qclass, qid=qid, ip=ip)
 
         if qtype in ['AAAA', 'ANY']:
-            #print >>out, 'LOG\twe got a AAAA query'
-            for key in prefixes.keys():
-                range=prefixes[key]
+            for range in prefixes.keys():
+                key=prefixes[range]
                 if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
                         node = base36decode(node)
-                    except ValueError:
-                        node = None
-                    if node:
                         ipv6 = netaddr.IPAddress(long(range.value) + long(node))
                         out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
                             (qname, qclass, key['ttl'], qid, ipv6))
                         break
+                    except ValueError:
+                        node = None
 
         if qtype in ['A', 'ANY']:
-            #print >>out, 'LOG\twe got a A query'
-            for key in prefixes.keys():
-                range=prefixes[key]
+            for range in prefixes.keys():
+                key=prefixes[range]
                 if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
                         node = base36decode(node)
-                    except ValueError:
-                        node = None
-                    if node:
                         ipv4 = netaddr.IPAddress(long(range.value) + long(node))
-                        print >>out, 'DATA\t%s\t%s\tA\t%d\t%s\t%s' % \
-                            (qname, qclass, key['ttl'], qid, ipv4)
-                break
+                        out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
+                            (qname, qclass, key['ttl'], qid, ipv4))
+                        break
+                    except ValueError:
+                        log(3,'failed to base36 decode host value',node=node)
 
         if qtype in ['PTR', 'ANY'] and qname.endswith('.ip6.arpa'):
-            #print >>out, 'LOG\twe got a PTR query'
             ptr = qname.split('.')[:-2][::-1]
             ipv6 = ':'.join(''.join(ptr[x:x+4]) for x in xrange(0, len(ptr), 4))
             try:
@@ -182,7 +195,6 @@ def parse(prefixes, rtree, fd, out):
                 out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
         if qtype in ['PTR', 'ANY'] and qname.endswith('.in-addr.arpa'):
-            #print >>out, 'LOG\twe got a PTR query'
             ptr = qname.split('.')[:-2][::-1]
             ipv4='.'.join(''.join(ptr[x:x+1]) for x in xrange(0, len(ptr), 1))
             try:
@@ -223,7 +235,7 @@ def parse(prefixes, rtree, fd, out):
         out.write("END\n")
         out.flush()
 
-    syslog.syslog('terminating')
+    log(1, "terminating")
     return 0
 
 def parse_config(config_path):
@@ -248,10 +260,10 @@ def parse_config(config_path):
 
 if __name__ == '__main__':
     syslog.openlog(os.path.basename(sys.argv[0]), syslog.LOG_PID)
-    syslog.syslog('starting up')
-
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
+        if len(sys.argv) > 2:
+            LOGLEVEL = int(sys.argv[2])
     else:
         config_path = CONFIG
 

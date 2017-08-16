@@ -5,7 +5,7 @@ forward lookup.
 
 ## Prerequisites
 
-* Python 2.7
+* Python 2.7 or 3
 * Python modules: `netaddr`, `py-radix`, `ipy`, `pyyaml`
 
 ## Setup
@@ -25,8 +25,11 @@ pipe-timeout=500
 The MIT License
 
 Copyright (c) 2009 Wijnand "maze" Modderman
+
 Copyright (c) 2010 Stefan "ZaphodB" Schmidt
+
 Copyright (c) 2011 Endre Szabo
+
 Copyright (c) 2017 Technical University of Munich (Lukas Erlacher)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
