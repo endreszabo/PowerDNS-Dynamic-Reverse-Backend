@@ -46,6 +46,11 @@ import IPy
 import radix
 import yaml
 
+try:
+    xrange
+except NameError:
+    xrange = range
+
 syslog.openlog(os.path.basename(sys.argv[0]), syslog.LOG_PID)
 syslog.syslog('starting up')
 
@@ -58,7 +63,7 @@ class HierDict(dict):
     def __getitem__(self, name):
         try:
             return super(HierDict,self).__getitem__(name)
-        except KeyError, e:
+        except KeyError as e:
             if self._parent is None:
                 raise
             return self._parent[name]
@@ -85,16 +90,17 @@ def base36decode(s):
 
 
 def parse(prefixes, rtree, fd, out):
+    print(prefixes)
     line = fd.readline().strip()
     if not line.startswith('HELO'):
-        print >>out, 'FAIL'
+        out.write("FAIL\n")
         out.flush()
-        syslog.syslog('received "%s", expected "HELO"' % (line,))
+        syslog.syslog("received '%s', expected 'HELO'" % (line,))
         sys.exit(1)
     else:
-        print >>out, 'OK\t%s ready with %d prefixes configured' % (os.path.basename(sys.argv[0]),len(prefixes))
+        out.write("OK\t%s ready with %d prefixes configured\n" % (os.path.basename(sys.argv[0]),len(prefixes)))
         out.flush()
-        syslog.syslog('received HELO from PowerDNS')
+        syslog.syslog("received HELO from PowerDNS")
 
     lastnet=0
     while True:
@@ -103,23 +109,23 @@ def parse(prefixes, rtree, fd, out):
             break
 
         #syslog.syslog('<<< %s' % (line,))
-        print >>out, 'LOG\tline: %s' % line
+        out.write("LOG\tline: %s\n" % line)
 
         request = line.split('\t')
         if request[0] == 'AXFR':
             if not lastnet == 0:
-                print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
-                        (lastnet['forward'], 'IN', lastnet['ttl'], qid, lastnet['dns'], lastnet['email'], time.strftime('%Y%m%d%H'))
+                out.write("DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600\n" % \
+                        (lastnet['forward'], 'IN', lastnet['ttl'], qid, lastnet['dns'], lastnet['email'], time.strftime('%Y%m%d%H')))
                 lastnet=lastnet
                 for ns in lastnet['nameserver']:
-                    print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
-                            (lastnet['forward'], 'IN', lastnet['ttl'], qid, ns)
-            print >>out, 'END'
+                    out.write("DATA\t%s\t%s\tNS\t%d\t%s\t%s\n" % \
+                            (lastnet['forward'], 'IN', lastnet['ttl'], qid, ns))
+            out.write("END\n")
             out.flush()
             continue
         if len(request) < 6:
-            print >>out, 'LOG\tPowerDNS sent unparsable line'
-            print >>out, 'FAIL'
+            out.write("LOG\tPowerDNS sent unparsable line\n")
+            out.write("FAIL\n")
             out.flush()
             continue
 
@@ -129,11 +135,12 @@ def parse(prefixes, rtree, fd, out):
         except:
             kind, qname, qclass, qtype, qid, ip, their_ip = request
         #debug
-        print >>out, 'LOG\tPowerDNS sent qname>>%s<< qtype>>%s<< qclass>>%s<< qid>>%s<< ip>>%s<<' % (qname, qtype, qclass, qid, ip)
+        out.write("LOG\tPowerDNS sent qname>>%s<< qtype>>%s<< qclass>>%s<< qid>>%s<< ip>>%s<<" % (qname, qtype, qclass, qid, ip))
 
         if qtype in ['AAAA', 'ANY']:
             #print >>out, 'LOG\twe got a AAAA query'
-            for range, key in prefixes.iteritems():
+            for key in prefixes.keys():
+                range=prefixes[key]
                 if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
@@ -142,12 +149,13 @@ def parse(prefixes, rtree, fd, out):
                         node = None
                     if node:
                         ipv6 = netaddr.IPAddress(long(range.value) + long(node))
-                        print >>out, 'DATA\t%s\t%s\tAAAA\t%d\t%s\t%s' % \
-                            (qname, qclass, key['ttl'], qid, ipv6)
+                        out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
+                            (qname, qclass, key['ttl'], qid, ipv6))
                         break
         if qtype in ['A', 'ANY']:
             #print >>out, 'LOG\twe got a A query'
-            for range, key in prefixes.iteritems():
+            for key in prefixes.keys():
+                range=prefixes[key]
                 if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
@@ -173,8 +181,8 @@ def parse(prefixes, rtree, fd, out):
                 range, key = node.data['prefix'], prefixes[node.data['prefix']]
                 node = ipv6.value - range.value
                 node = base36encode(node)
-                print >>out, 'DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s' % \
-                    (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward'])
+                out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
+                    (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
 
         if qtype in ['PTR', 'ANY'] and qname.endswith('.in-addr.arpa'):
             #print >>out, 'LOG\twe got a PTR query'
@@ -189,34 +197,35 @@ def parse(prefixes, rtree, fd, out):
                 range, key = node.data['prefix'], prefixes[node.data['prefix']]
                 node = ipv4.value - range.value
                 node = base36encode(node)
-                print >>out, 'DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s' % \
-                    (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward'])
+                out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
+                    (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
 
 
         if qtype in ['SOA', 'ANY', 'NS']:
-            for range, key in prefixes.iteritems():
+            for range in prefixes.keys():
+                key=prefixes[range]
                 if qname == key['domain']:
                     if not qtype == 'NS':
-                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
-                                (key['domain'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
+                        out.write("DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600\n" % \
+                                (key['domain'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H')))
                         lastnet=key
                     if qtype in ['ANY', 'NS']:
                         for ns in key['nameserver']:
-                            print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
-                                    (key['domain'], qclass, key['ttl'], qid, ns)
+                            out.write("DATA\t%s\t%s\tNS\t%d\t%s\t%s\n" % \
+                                    (key['domain'], qclass, key['ttl'], qid, ns))
                     break
                 elif qname == key['forward']:
                     if not qtype == 'NS':
-                        print >>out, 'DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600' % \
-                                (key['forward'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H'))
+                        out.write("DATA\t%s\t%s\tSOA\t%d\t%s\t%s %s %s 10800 3600 604800 3600\n" % \
+                                (key['forward'], qclass, key['ttl'], qid, key['dns'], key['email'], time.strftime('%Y%m%d%H')))
                         lastnet=key
                     if qtype in ['ANY', 'NS']:
                         for ns in key['nameserver']:
-                            print >>out, 'DATA\t%s\t%s\tNS\t%d\t%s\t%s' % \
-                                    (key['forward'], qclass, key['ttl'], qid, ns)
+                            out.write("DATA\t%s\t%s\tNS\t%d\t%s\t%s" % \
+                                    (key['forward'], qclass, key['ttl'], qid, ns))
                     break
 
-        print >>out, 'END'
+        out.write("END\n")
         out.flush()
 
     syslog.syslog('terminating')
@@ -232,7 +241,7 @@ def parse_config(config_path):
     prefixes = { netaddr.IPNetwork(prefix) : HierDict(defaults, info) for prefix, info in config_dict['prefixes'].items()}
 
     for zone in prefixes:
-        if not prefixes[zone].has_key('domain'):
+        if not 'domain' in prefixes[zone]:
             from IPy import IP
             prefixes[zone]['domain']=IP(str(zone.cidr)).reverseName()[:-1]
 
