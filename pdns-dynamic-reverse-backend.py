@@ -7,7 +7,7 @@ forward lookup.
 pdns.conf example:
 
 launch=pipe
-pipe-command=/usr/local/sbin/pipe-local-ipv6-wrapper
+pipe-command=/usr/sbin/pdns-dynamic-reverse-backend.py /etc/pdns/dynrev.yml
 pipe-timeout=500
 
 ### LICENSE ###
@@ -48,7 +48,7 @@ import radix
 import yaml
 
 LOGLEVEL = 2
-CONFIG = 'dynrev.yml'
+CONFIG = '/etc/pdns/dynrev.yml'
 
 VERSION = 0.9
 DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz'
