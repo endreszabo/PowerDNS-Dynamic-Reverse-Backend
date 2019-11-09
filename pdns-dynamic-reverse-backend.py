@@ -10,6 +10,11 @@ launch=pipe
 pipe-command=/usr/sbin/pdns-dynamic-reverse-backend.py /etc/pdns/dynrev.yml
 pipe-timeout=500
 
+
+if you use other backends include them all in the one launch statement
+e.g.
+launch=gmysql,pipe
+
 ### LICENSE ###
 
 The MIT License
