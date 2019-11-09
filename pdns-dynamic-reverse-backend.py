@@ -104,12 +104,12 @@ def parse(prefixes, rtree, fd, out):
     def log(level=LOGLEVEL, message=None, **kwargs):
         if level<=LOGLEVEL:
             message="%s; %s" % (message, ", ".join(filter(None, map(lambda k: "%s=%s" % (k, repr(str(kwargs[k]))), kwargs.keys()))))
-            out.write("LOG\t%s\n" % message)
+            #out.write("LOG\t%s\n" % message)
             syslog.syslog(message)
     def logd(level=LOGLEVEL, message=None, kwargs={}):
         if level<=LOGLEVEL:
             message="%s; %s" % (message, ", ".join(filter(None, map(lambda k: "%s=%s" % (k, repr(str(kwargs[k]))), kwargs.keys()))))
-            out.write("LOG\t%s\n" % message)
+            #out.write("LOG\t%s\n" % message)
             syslog.syslog(message)
     log(0,"starting up")
     line = fd.readline().strip()
