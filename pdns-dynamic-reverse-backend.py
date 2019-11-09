@@ -56,7 +56,7 @@ LOGLEVEL = 2
 CONFIG = '/etc/pdns/dynrev.yml'
 
 VERSION = 0.9
-DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz'
+DIGITS = '0123456789bcdfghjklmnpqrstvwxyz'
 SCRIPTNAME=os.path.basename(sys.argv[0])
 
 #xrange() backwards compatibility for python3
