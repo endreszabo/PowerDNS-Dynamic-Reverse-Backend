@@ -23,6 +23,7 @@ Copyright (c) 2009 Wijnand "maze" Modderman
 Copyright (c) 2010 Stefan "ZaphodB" Schmidt
 Copyright (c) 2011 Endre Szabo
 Copyright (c) 2017 Technical University of Munich (Lukas Erlacher)
+Copyrught (c) 2019 David Beveridge (bevhost)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
