@@ -4,10 +4,10 @@
 PowerDNS pipe backend for generating reverse DNS entries and their
 forward lookup.
 
-pdns.conf example:
+pdns.conf example:  passing command name, config file & log level
 
 launch=pipe
-pipe-command=/usr/sbin/pdns-dynamic-reverse-backend.py /etc/pdns/dynrev.yml
+pipe-command=/usr/sbin/pdns-dynamic-reverse-backend.py /etc/pdns/dynrev.yml 1
 pipe-timeout=500
 
 
