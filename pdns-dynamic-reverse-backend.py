@@ -10,7 +10,6 @@ launch=pipe
 pipe-command=/usr/sbin/pdns-dynamic-reverse-backend.py /etc/pdns/dynrev.yml 1
 pipe-timeout=500
 
-
 if you use other backends include them all in the one launch statement
 e.g.
 launch=gmysql,pipe
@@ -23,7 +22,7 @@ Copyright (c) 2009 Wijnand "maze" Modderman
 Copyright (c) 2010 Stefan "ZaphodB" Schmidt
 Copyright (c) 2011 Endre Szabo
 Copyright (c) 2017 Technical University of Munich (Lukas Erlacher)
-Copyrught (c) 2019 David Beveridge (bevhost)
+Copyright (c) 2019 David Beveridge (bevhost)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +53,7 @@ import radix
 import yaml
 
 LOGLEVEL = 2
-CONFIG = '/etc/pdns/dynrev.yml'
+CONFIG = 'dynrev.yml'
 
 VERSION = 0.9
 DIGITS = '0123456789bcdfghjklmnpqrstvwxyz'
