@@ -4,11 +4,15 @@
 PowerDNS pipe backend for generating reverse DNS entries and their
 forward lookup.
 
-pdns.conf example:
+pdns.conf example:  passing command name, config file & log level
 
 launch=pipe
-pipe-command=/usr/local/sbin/pipe-local-ipv6-wrapper
+pipe-command=/usr/sbin/pdns-dynamic-reverse-backend.py /etc/pdns/dynrev.yml 1
 pipe-timeout=500
+
+if you use other backends include them all in the one launch statement
+e.g.
+launch=gmysql,pipe
 
 ### LICENSE ###
 
@@ -18,6 +22,7 @@ Copyright (c) 2009 Wijnand "maze" Modderman
 Copyright (c) 2010 Stefan "ZaphodB" Schmidt
 Copyright (c) 2011 Endre Szabo
 Copyright (c) 2017 Technical University of Munich (Lukas Erlacher)
+Copyright (c) 2019 David Beveridge (bevhost)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +56,7 @@ LOGLEVEL = 2
 CONFIG = 'dynrev.yml'
 
 VERSION = 0.9
-DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz'
+DIGITS = '0123456789bcdfghjklmnpqrstvwxyz'
 SCRIPTNAME=os.path.basename(sys.argv[0])
 
 #xrange() backwards compatibility for python3
@@ -99,12 +104,12 @@ def parse(prefixes, rtree, fd, out):
     def log(level=LOGLEVEL, message=None, **kwargs):
         if level<=LOGLEVEL:
             message="%s; %s" % (message, ", ".join(filter(None, map(lambda k: "%s=%s" % (k, repr(str(kwargs[k]))), kwargs.keys()))))
-            out.write("LOG\t%s\n" % message)
+            #out.write("LOG\t%s\n" % message)
             syslog.syslog(message)
     def logd(level=LOGLEVEL, message=None, kwargs={}):
         if level<=LOGLEVEL:
             message="%s; %s" % (message, ", ".join(filter(None, map(lambda k: "%s=%s" % (k, repr(str(kwargs[k]))), kwargs.keys()))))
-            out.write("LOG\t%s\n" % message)
+            #out.write("LOG\t%s\n" % message)
             syslog.syslog(message)
     log(0,"starting up")
     line = fd.readline().strip()

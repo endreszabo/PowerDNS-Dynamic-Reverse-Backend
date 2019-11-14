@@ -1,0 +1,11 @@
+Source: pdns-dynrev
+Maintainer: David Beveridge <dave@bevhost.com>
+Section: unknown
+Priority: standard
+Standards-Version: 4.0.0
+
+Package: pdns-dynrev
+Architecture: all
+Description:
+ PowerDNS pipe backend for generating reverse DNS entries and their
+ forward lookup.
