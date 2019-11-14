@@ -18,5 +18,5 @@ install:
 	$(MKDIR_P) $(DESTDIR)$(DOCDIR)
 	$(INSTALL) -pm 644 dynrev.yml $(DESTDIR)$(ETCDIR)/dynrev.yml.example
 	$(INSTALL) -pm 644 README.md $(DESTDIR)$(DOCDIR)/README
-	$(INSTALL) -pm 750 pdns-dynamic-reverse-backend.py $(DESTDIR)$(BINDIR)/pdns-dynamic-reverse-backend.py
+	$(INSTALL) -pm 755 pdns-dynamic-reverse-backend.py $(DESTDIR)$(BINDIR)/pdns-dynamic-reverse-backend.py
 	
