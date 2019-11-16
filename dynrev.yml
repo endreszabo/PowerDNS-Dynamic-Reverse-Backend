@@ -2,7 +2,6 @@ defaults:
   email : 'hostmaster.example.com'
   dns : 'ns0.example.com'
   ttl : 300
-  version : 6
   nameserver:
     - ns0.example.com
     - ns1.example.com
@@ -11,7 +10,6 @@ prefixes:
     prefix: 'u'
     postfix: '-l0'
     forward: example.com
-    version: 4
   'fd00::/8':
     prefix: 'u'
     postfix: '-i1'
