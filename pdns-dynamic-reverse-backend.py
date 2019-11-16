@@ -251,9 +251,11 @@ def parse_config(config_path):
     prefixes = { netaddr.IPNetwork(prefix) : HierDict(defaults, info) for prefix, info in config_dict['prefixes'].items()}
 
     for zone in prefixes:
+        from IPy import IP
+        prefixes[zone]['version']=IP(str(zone.cidr)).version()
         if not 'domain' in prefixes[zone]:
-            from IPy import IP
             prefixes[zone]['domain']=IP(str(zone.cidr)).reverseName()[:-1]
+
 
     rtree=radix.Radix()
 
