@@ -256,7 +256,6 @@ def parse_config(config_path):
         if not 'domain' in prefixes[zone]:
             prefixes[zone]['domain']=IP(str(zone.cidr)).reverseName()[:-1]
 
-
     rtree=radix.Radix()
 
     for prefix in prefixes.keys():
