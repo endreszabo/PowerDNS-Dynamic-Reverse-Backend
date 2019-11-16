@@ -160,7 +160,7 @@ def parse(prefixes, rtree, fd, out):
         if qtype in ['AAAA', 'ANY']:
             for range in prefixes.keys():
                 key=prefixes[range]
-                if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
+                if qname.endswith('%s.%s' % (key['postfix'], key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
                         node = base36decode(node)
@@ -174,7 +174,7 @@ def parse(prefixes, rtree, fd, out):
         if qtype in ['A', 'ANY']:
             for range in prefixes.keys():
                 key=prefixes[range]
-                if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
+                if qname.endswith('%s.%s' % (key['postfix'], key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
                         node = base36decode(node)
