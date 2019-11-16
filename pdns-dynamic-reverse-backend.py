@@ -163,8 +163,11 @@ def parse(prefixes, rtree, fd, out):
                 if qname.endswith('%s.%s' % (key['postfix'], key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
-                        node = base36decode(node)
-                        ipv6 = netaddr.IPAddress(long(range.value) + long(node))
+                        if key['replace']:
+                            ipv6 = node.replace(key['replace'],':')
+                        else:
+                            node = base36decode(node)
+                            ipv6 = netaddr.IPAddress(long(range.value) + long(node))
                         out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
                             (qname, qclass, key['ttl'], qid, ipv6))
                         break
@@ -177,8 +180,11 @@ def parse(prefixes, rtree, fd, out):
                 if qname.endswith('%s.%s' % (key['postfix'], key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
-                        node = base36decode(node)
-                        ipv4 = netaddr.IPAddress(long(range.value) + long(node))
+                        if key['replace']:
+                            ipv4 = node.replace(key['replace'],'.')
+                        else:
+                            node = base36decode(node)
+                            ipv4 = netaddr.IPAddress(long(range.value) + long(node))
                         out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
                             (qname, qclass, key['ttl'], qid, ipv4))
                         break
@@ -195,8 +201,11 @@ def parse(prefixes, rtree, fd, out):
             node=rtree.search_best(str(ipv6))
             if node:
                 range, key = node.data['prefix'], prefixes[node.data['prefix']]
-                node = ipv6.value - range.value
-                node = base36encode(node)
+                if key['replace']:
+                    node = str(ipv6).replace(':',key['replace'])
+                else:
+                    node = ipv6.value - range.value
+                    node = base36encode(node)
                 out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
         if qtype in ['PTR', 'ANY'] and qname.endswith('.in-addr.arpa'):
@@ -209,8 +218,11 @@ def parse(prefixes, rtree, fd, out):
             node=rtree.search_best(str(ipv4))
             if node:
                 range, key = node.data['prefix'], prefixes[node.data['prefix']]
-                node = ipv4.value - range.value
-                node = base36encode(node)
+                if key['replace']:
+                    node = str(ipv4).replace('.',key['replace'])
+                else:
+                    node = ipv4.value - range.value
+                    node = base36encode(node)
                 out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
         if qtype in ['SOA', 'ANY', 'NS']:
@@ -248,6 +260,8 @@ def parse_config(config_path):
         config_dict = yaml.load(config_file)
 
     defaults = config_dict.get('defaults', {})
+    if not 'replace' in defaults:
+        defaults['replace']=None
     prefixes = { netaddr.IPNetwork(prefix) : HierDict(defaults, info) for prefix, info in config_dict['prefixes'].items()}
 
     for zone in prefixes:

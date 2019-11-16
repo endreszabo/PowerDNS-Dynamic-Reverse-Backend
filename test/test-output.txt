@@ -43,3 +43,7 @@ END
 END
 END
 END
+DATA	1.0.168.192.in-addr.arpa	IN	PTR	300	-1	192-168-0-1.example.net
+END
+DATA	192-168-0-1.example.net	IN	A	300	-1	192.168.0.1
+END
