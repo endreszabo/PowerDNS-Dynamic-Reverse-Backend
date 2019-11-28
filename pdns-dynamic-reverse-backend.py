@@ -9,6 +9,10 @@ pdns.conf example:  passing command name, config file & log level
 launch=pipe
 pipe-command=/usr/sbin/pdns-dynamic-reverse-backend.py /etc/pdns/dynrev.yml 1
 pipe-timeout=500
+pipe-regex=^([0-9]|[a-f]|\.|\:)*\.(in\-addr|ip6)\.arpa|([a-z]|[0-9]|\-)*\.ip[4|6]\.example\.com$
+
+The pipe-regex is optional, it serves to limit queries send to this backend
+on a busy server.  You'll need to check that it matches all your queries.
 
 if you use other backends include them all in the one launch statement
 e.g.
@@ -124,7 +128,9 @@ def parse(prefixes, rtree, fd, out):
         out.flush()
 
     lastnet=0
-    while True:
+    count=100000
+    while count > 0:
+        count -= 1
         line = fd.readline().strip()
         if not line:
             break
