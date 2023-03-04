@@ -174,9 +174,10 @@ def parse(prefixes, rtree, fd, out):
                         else:
                             node = base36decode(node)
                             ipv6 = netaddr.IPAddress(long(range.value) + long(node))
-                        out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
-                            (qname, qclass, key['ttl'], qid, ipv6))
-                        break
+                        if range.value <= netaddr.IPAddress(ipv6).value <= range.value+range.size:
+                            out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
+                                (qname, qclass, key['ttl'], qid, ipv6))
+                            break
                     except ValueError:
                         node = None
 
@@ -191,9 +192,10 @@ def parse(prefixes, rtree, fd, out):
                         else:
                             node = base36decode(node)
                             ipv4 = netaddr.IPAddress(long(range.value) + long(node))
-                        out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
-                            (qname, qclass, key['ttl'], qid, ipv4))
-                        break
+                        if range.value <= netaddr.IPAddress(ipv4).value <= range.value+range.size:
+                            out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
+                                (qname, qclass, key['ttl'], qid, ipv4))
+                            break
                     except ValueError:
                         log(3,'failed to base36 decode host value',node=node)
 
