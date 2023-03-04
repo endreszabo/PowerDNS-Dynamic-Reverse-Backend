@@ -188,12 +188,15 @@ def parse(prefixes, rtree, fd, out):
                     try:
                         if key['replace']:
                             ipv4 = node.replace(key['replace'],'.')
+                            if not (range.value <= netaddr.IPAddress(ipv4).value <= range.value+range.size):
+                                ipv4 = None
                         else:
                             node = base36decode(node)
                             ipv4 = netaddr.IPAddress(long(range.value) + long(node))
-                        out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
-                            (qname, qclass, key['ttl'], qid, ipv4))
-                        break
+                        if ipv4:
+                            out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
+                                (qname, qclass, key['ttl'], qid, ipv4))
+                            break
                     except ValueError:
                         log(3,'failed to base36 decode host value',node=node)
 
