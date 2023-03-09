@@ -55,6 +55,7 @@ import netaddr
 import IPy
 import radix
 import yaml
+import socket
 
 LOGLEVEL = 2
 CONFIG = 'dynrev.yml'
@@ -87,6 +88,20 @@ class HierDict(dict):
             if self._parent is None:
                 raise
             return self._parent[name]
+
+def check_ipv6(n):
+    try:
+        socket.inet_pton(socket.AF_INET6, n)
+        return True
+    except socket.error:
+        return False
+
+def check_ipv4(n):
+    try:
+        socket.inet_pton(socket.AF_INET, n)
+        return True
+    except socket.error:
+        return False
 
 def base36encode(n):
     s = ''
@@ -171,10 +186,14 @@ def parse(prefixes, rtree, fd, out):
                     try:
                         if key['replace']:
                             ipv6 = node.replace(key['replace'],':')
+                            if check_ipv6(ipv6):
+                                ipv6 = netaddr.IPAddress(ipv6)
+                            else:
+                                ipv6 = None
                         else:
                             node = base36decode(node)
                             ipv6 = netaddr.IPAddress(long(range.value) + long(node))
-                        if range.value <= netaddr.IPAddress(ipv6).value <= range.value+range.size:
+                        if ipv6 and range.value <= ipv6.value <= range.value+range.size:
                             out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
                                 (qname, qclass, key['ttl'], qid, ipv6))
                             break
@@ -189,10 +208,14 @@ def parse(prefixes, rtree, fd, out):
                     try:
                         if key['replace']:
                             ipv4 = node.replace(key['replace'],'.')
+                            if check_ipv4(ipv4):
+                                ipv4 = netaddr.IPAddress(ipv4)
+                            else:
+                                ipv4 = None
                         else:
                             node = base36decode(node)
                             ipv4 = netaddr.IPAddress(long(range.value) + long(node))
-                        if range.value <= netaddr.IPAddress(ipv4).value <= range.value+range.size:
+                        if ipv4 and range.value <= ipv4.value <= range.value+range.size:
                             out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
                                 (qname, qclass, key['ttl'], qid, ipv4))
                             break
