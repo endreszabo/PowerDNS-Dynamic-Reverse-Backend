@@ -9,6 +9,10 @@ pdns.conf example:  passing command name, config file & log level
 launch=pipe
 pipe-command=/usr/sbin/pdns-dynamic-reverse-backend.py /etc/pdns/dynrev.yml 1
 pipe-timeout=500
+pipe-regex=^([0-9]|[a-f]|\.|\:)*\.(in\-addr|ip6)\.arpa|([a-z]|[0-9]|\-)*\.ip[4|6]\.example\.com$
+
+The pipe-regex is optional, it serves to limit queries send to this backend
+on a busy server.  You'll need to check that it matches all your queries.
 
 if you use other backends include them all in the one launch statement
 e.g.
@@ -51,6 +55,7 @@ import netaddr
 import IPy
 import radix
 import yaml
+import socket
 
 LOGLEVEL = 2
 CONFIG = 'dynrev.yml'
@@ -83,6 +88,20 @@ class HierDict(dict):
             if self._parent is None:
                 raise
             return self._parent[name]
+
+def check_ipv6(n):
+    try:
+        socket.inet_pton(socket.AF_INET6, n)
+        return True
+    except socket.error:
+        return False
+
+def check_ipv4(n):
+    try:
+        socket.inet_pton(socket.AF_INET, n)
+        return True
+    except socket.error:
+        return False
 
 def base36encode(n):
     s = ''
@@ -124,7 +143,9 @@ def parse(prefixes, rtree, fd, out):
         out.flush()
 
     lastnet=0
-    while True:
+    count=100000
+    while count > 0:
+        count -= 1
         line = fd.readline().strip()
         if not line:
             break
@@ -160,28 +181,44 @@ def parse(prefixes, rtree, fd, out):
         if qtype in ['AAAA', 'ANY']:
             for range in prefixes.keys():
                 key=prefixes[range]
-                if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
+                if qname.endswith('%s.%s' % (key['postfix'], key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
-                        node = base36decode(node)
-                        ipv6 = netaddr.IPAddress(long(range.value) + long(node))
-                        out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
-                            (qname, qclass, key['ttl'], qid, ipv6))
-                        break
+                        if key['replace']:
+                            ipv6 = node.replace(key['replace'],':')
+                            if check_ipv6(ipv6):
+                                ipv6 = netaddr.IPAddress(ipv6)
+                            else:
+                                ipv6 = None
+                        else:
+                            node = base36decode(node)
+                            ipv6 = netaddr.IPAddress(long(range.value) + long(node))
+                        if ipv6 and range.value <= ipv6.value <= range.value+range.size:
+                            out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
+                                (qname, qclass, key['ttl'], qid, ipv6))
+                            break
                     except ValueError:
                         node = None
 
         if qtype in ['A', 'ANY']:
             for range in prefixes.keys():
                 key=prefixes[range]
-                if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
+                if qname.endswith('%s.%s' % (key['postfix'], key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
-                        node = base36decode(node)
-                        ipv4 = netaddr.IPAddress(long(range.value) + long(node))
-                        out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
-                            (qname, qclass, key['ttl'], qid, ipv4))
-                        break
+                        if key['replace']:
+                            ipv4 = node.replace(key['replace'],'.')
+                            if check_ipv4(ipv4):
+                                ipv4 = netaddr.IPAddress(ipv4)
+                            else:
+                                ipv4 = None
+                        else:
+                            node = base36decode(node)
+                            ipv4 = netaddr.IPAddress(long(range.value) + long(node))
+                        if ipv4 and range.value <= ipv4.value <= range.value+range.size:
+                            out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
+                                (qname, qclass, key['ttl'], qid, ipv4))
+                            break
                     except ValueError:
                         log(3,'failed to base36 decode host value',node=node)
 
@@ -195,8 +232,11 @@ def parse(prefixes, rtree, fd, out):
             node=rtree.search_best(str(ipv6))
             if node:
                 range, key = node.data['prefix'], prefixes[node.data['prefix']]
-                node = ipv6.value - range.value
-                node = base36encode(node)
+                if key['replace']:
+                    node = str(ipv6).replace(':',key['replace'])
+                else:
+                    node = ipv6.value - range.value
+                    node = base36encode(node)
                 out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
         if qtype in ['PTR', 'ANY'] and qname.endswith('.in-addr.arpa'):
@@ -209,8 +249,11 @@ def parse(prefixes, rtree, fd, out):
             node=rtree.search_best(str(ipv4))
             if node:
                 range, key = node.data['prefix'], prefixes[node.data['prefix']]
-                node = ipv4.value - range.value
-                node = base36encode(node)
+                if key['replace']:
+                    node = str(ipv4).replace('.',key['replace'])
+                else:
+                    node = ipv4.value - range.value
+                    node = base36encode(node)
                 out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
         if qtype in ['SOA', 'ANY', 'NS']:
@@ -248,11 +291,14 @@ def parse_config(config_path):
         config_dict = yaml.load(config_file)
 
     defaults = config_dict.get('defaults', {})
+    if not 'replace' in defaults:
+        defaults['replace']=None
     prefixes = { netaddr.IPNetwork(prefix) : HierDict(defaults, info) for prefix, info in config_dict['prefixes'].items()}
 
     for zone in prefixes:
+        from IPy import IP
+        prefixes[zone]['version']=IP(str(zone.cidr)).version()
         if not 'domain' in prefixes[zone]:
-            from IPy import IP
             prefixes[zone]['domain']=IP(str(zone.cidr)).reverseName()[:-1]
 
     rtree=radix.Radix()

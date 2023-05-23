@@ -1,25 +1,23 @@
-LOG	starting up; 
 OK	pdns-dynamic-reverse-backend.py ready with 2 prefixes configured
-LOG	powerdns HELO received, ready to process requests; prefixes_count='2'
 DATA	254.169.in-addr.arpa	IN	SOA	300	-1	ns0.example.com hostmaster.example.com 2017081616 10800 3600 604800 3600
 END
 DATA	0.0.254.169.in-addr.arpa	IN	PTR	300	-1	u0-l0.example.com
 END
 DATA	1.0.254.169.in-addr.arpa	IN	PTR	300	-1	u1-l0.example.com
 END
-DATA	254.255.254.169.in-addr.arpa	IN	PTR	300	-1	u1eke-l0.example.com
+DATA	254.255.254.169.in-addr.arpa	IN	PTR	300	-1	u2660-l0.example.com
 END
-DATA	255.255.254.169.in-addr.arpa	IN	PTR	300	-1	u1ekf-l0.example.com
+DATA	255.255.254.169.in-addr.arpa	IN	PTR	300	-1	u2661-l0.example.com
 END
 DATA	u0-l0.example.com	IN	A	300	-1	169.254.0.0
 END
 DATA	u1-l0.example.com	IN	A	300	-1	169.254.0.1
 END
-DATA	u1eke-l0.example.com	IN	A	300	-1	169.254.255.254
+DATA	u2660-l0.example.com	IN	A	300	-1	169.254.255.254
 END
-DATA	u1ekf-l0.example.com	IN	A	300	-1	169.254.255.255
+DATA	u2661-l0.example.com	IN	A	300	-1	169.254.255.255
 END
-DATA	u1ekg-l0.example.com	IN	A	300	-1	169.255.0.0
+DATA	u2662-l0.example.com	IN	A	300	-1	169.255.0.0
 END
 DATA	d.f.ip6.arpa	IN	SOA	300	-1	ns0.example.com hostmaster.example.com 2017081616 10800 3600 604800 3600
 END
@@ -27,23 +25,25 @@ DATA	u0-i1.example.com	IN	AAAA	300	-1	fd00::
 END
 DATA	u1-i1.example.com	IN	AAAA	300	-1	fd00::1
 END
-DATA	u24q5bylddqo566k7npiubn5q-i1.example.com	IN	AAAA	300	-1	fdff:ffff:ffff:ffff:ffff:ffff:ffff:fffe
+DATA	u24dxxm42269mk9yml4d6wkxrz-i1.example.com	IN	AAAA	300	-1	fdff:ffff:ffff:ffff:ffff:ffff:ffff:fffe
 END
-DATA	u24q5bylddqo566k7npiubn5r-i1.example.com	IN	AAAA	300	-1	fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-END
-DATA	u24q5bylddqo566k7npiubn5s-i1.example.com	IN	AAAA	300	-1	fe00::
+DATA	u24dxxm42269mk9yml4d6wkxs0-i1.example.com	IN	AAAA	300	-1	fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
 END
 DATA	0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.d.f.ip6.arpa	IN	PTR	300	-1	u0-i1.example.com
 END
 DATA	1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.d.f.ip6.arpa	IN	PTR	300	-1	u1-i1.example.com
 END
-DATA	e.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.d.f.ip6.arpa	IN	PTR	300	-1	u24q5bylddqo566k7npiubn5q-i1.example.com
+DATA	e.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.d.f.ip6.arpa	IN	PTR	300	-1	u24dxxm42269mk9yml4d6wkxrz-i1.example.com
 END
-DATA	f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.d.f.ip6.arpa	IN	PTR	300	-1	u24q5bylddqo566k7npiubn5r-i1.example.com
-END
-END
+DATA	f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f.d.f.ip6.arpa	IN	PTR	300	-1	u24dxxm42269mk9yml4d6wkxs0-i1.example.com
 END
 END
 END
 END
+END
+END
+END
+DATA	1.0.168.192.in-addr.arpa	IN	PTR	300	-1	192-168-0-1.example.net
+END
+DATA	192-168-0-1.example.net	IN	A	300	-1	192.168.0.1
 END

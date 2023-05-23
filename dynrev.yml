@@ -2,7 +2,6 @@ defaults:
   email : 'hostmaster.example.com'
   dns : 'ns0.example.com'
   ttl : 300
-  version : 6
   nameserver:
     - ns0.example.com
     - ns1.example.com
@@ -11,8 +10,14 @@ prefixes:
     prefix: 'u'
     postfix: '-l0'
     forward: example.com
-    version: 4
   'fd00::/8':
     prefix: 'u'
     postfix: '-i1'
     forward: 'example.com'
+  '192.168.0.0/16':
+    prefix: ''
+    postfix: ''
+    forward: 'example.net'
+    replace: '-'
+  # you can have no prefix/postfix with replace, 
+  # but not on the same forward as non-replace
