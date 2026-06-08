@@ -5,8 +5,8 @@ forward lookup.
 
 ## Prerequisites
 
-* Python 2.7 or 3
-* Python modules: `netaddr`, `py-radix`, `ipy`, `pyyaml`
+* Python 3
+* Python modules: `netaddr`, `py-radix`, `pyyaml`
 
 ## Setup
 

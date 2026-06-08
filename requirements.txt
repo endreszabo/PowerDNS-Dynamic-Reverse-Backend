@@ -1,4 +1,3 @@
 netaddr
 py-radix
-ipy
 pyyaml

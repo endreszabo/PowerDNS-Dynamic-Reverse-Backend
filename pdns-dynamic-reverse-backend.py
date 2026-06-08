@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 PowerDNS pipe backend for generating reverse DNS entries and their
@@ -47,8 +47,8 @@ import sys, os
 import re
 import syslog
 import time
+import ipaddress
 import netaddr
-import IPy
 import radix
 import yaml
 
@@ -100,6 +100,51 @@ def base36decode(s):
         n += r * (len(DIGITS) ** i)
     return n
 
+def get_reverse_pointer(ip_network):
+    """Get reverse pointer for an IP network zone (not host-level)."""
+    # Get the full reverse pointer for the network address
+    full_pointer = str(ip_network.network_address.reverse_pointer)
+
+    if ip_network.version == 4:
+        # IPv4: reverse_pointer has octets separated by dots
+        # For a /16, we need to keep only the last 2 octets (network bits / 8)
+        # For a /24, we need to keep only the last 3 octets
+        num_octets_to_keep = ip_network.prefixlen // 8
+        labels = full_pointer.split('.')
+        # labels = ['0', '0', '254', '169', 'in-addr', 'arpa']
+        # For /16: keep last 2 octets before 'in-addr.arpa' = labels[2:4] + ['in-addr', 'arpa']
+        network_labels = labels[4 - num_octets_to_keep:4] + labels[4:]
+        return '.'.join(network_labels)
+    else:
+        # IPv6: reverse_pointer has nibbles separated by dots
+        # For a /64, we need to keep 64 bits / 4 bits per nibble = 16 nibbles
+        num_nibbles_to_keep = ip_network.prefixlen // 4
+        labels = full_pointer.split('.')
+        # Keep the last num_nibbles_to_keep labels before 'ip6.arpa'
+        # labels has 32 nibbles + 2 = 34 elements for full IPv6
+        network_labels = labels[32 - num_nibbles_to_keep:32] + labels[32:]
+        return '.'.join(network_labels)
+
+def get_reverse_names(ip_network):
+    """Get reverse zone names for an IP network."""
+    # For delegation purposes, return the main reverse zone(s)
+    names = []
+    # For small networks, return all possible reverse zones
+    # This mimics IPy.reverseNames() behavior
+    if ip_network.version == 4:
+        # For IPv4, generate reverse zone names based on CIDR
+        if ip_network.prefixlen % 8 == 0:
+            # Byte-aligned networks have single reverse zones
+            names.append(str(ip_network.network_address.reverse_pointer))
+        else:
+            # Non-byte-aligned networks need CNAME delegation
+            # For simplicity, return the primary reverse zone
+            names.append(str(ip_network.network_address.reverse_pointer))
+    else:
+        # For IPv6, similar logic
+        names.append(str(ip_network.network_address.reverse_pointer))
+    return names
+
 def parse(prefixes, rtree, fd, out):
     def log(level=LOGLEVEL, message=None, **kwargs):
         if level<=LOGLEVEL:
@@ -124,7 +169,9 @@ def parse(prefixes, rtree, fd, out):
         out.flush()
 
     lastnet=0
-    while True:
+    count=100000
+    while count > 0:
+        count -= 1
         line = fd.readline().strip()
         if not line:
             break
@@ -160,11 +207,24 @@ def parse(prefixes, rtree, fd, out):
         if qtype in ['AAAA', 'ANY']:
             for range in prefixes.keys():
                 key=prefixes[range]
-                if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
+                if qname.endswith('%s.%s' % (key['postfix'], key['forward'],)) and key['version'] == 6 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
-                        node = base36decode(node)
-                        ipv6 = netaddr.IPAddress(long(range.value) + long(node))
+                        if key['replace']:
+                            ipv6 = node.replace(key['replace'],':')
+                        else:
+                            node = base36decode(node)
+                            # Clamp node offset so resulting IP stays within the prefix
+                            base = int(getattr(range, 'network', range.value))
+                            try:
+                                broadcast = int(getattr(range, 'broadcast', range.value))
+                            except Exception:
+                                broadcast = base
+                            max_offset = max(0, broadcast - base)
+                            node_int = int(node)
+                            if node_int < 0 or node_int > max_offset:
+                                break
+                            ipv6 = netaddr.IPAddress(base + node_int)
                         out.write("DATA\t%s\t%s\tAAAA\t%d\t%s\t%s\n" % \
                             (qname, qclass, key['ttl'], qid, ipv6))
                         break
@@ -174,11 +234,24 @@ def parse(prefixes, rtree, fd, out):
         if qtype in ['A', 'ANY']:
             for range in prefixes.keys():
                 key=prefixes[range]
-                if qname.endswith('.%s' % (key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
+                if qname.endswith('%s.%s' % (key['postfix'], key['forward'],)) and key['version'] == 4 and qname.startswith(key['prefix']):
                     node = qname[len(key['prefix']):].replace('%s.%s' % (key['postfix'], key['forward'],), '')
                     try:
-                        node = base36decode(node)
-                        ipv4 = netaddr.IPAddress(long(range.value) + long(node))
+                        if key['replace']:
+                            ipv4 = node.replace(key['replace'],'.')
+                        else:
+                            node = base36decode(node)
+                            # Clamp node offset so resulting IP stays within the prefix
+                            base = int(getattr(range, 'network', range.value))
+                            try:
+                                broadcast = int(getattr(range, 'broadcast', range.value))
+                            except Exception:
+                                broadcast = base
+                            max_offset = max(0, broadcast - base)
+                            node_int = int(node)
+                            if node_int < 0 or node_int > max_offset:
+                                break
+                            ipv4 = netaddr.IPAddress(base + node_int)
                         out.write("DATA\t%s\t%s\tA\t%d\t%s\t%s\n" % \
                             (qname, qclass, key['ttl'], qid, ipv4))
                         break
@@ -195,8 +268,11 @@ def parse(prefixes, rtree, fd, out):
             node=rtree.search_best(str(ipv6))
             if node:
                 range, key = node.data['prefix'], prefixes[node.data['prefix']]
-                node = ipv6.value - range.value
-                node = base36encode(node)
+                if key['replace']:
+                    node = str(ipv6).replace(':',key['replace'])
+                else:
+                    node = ipv6.value - range.value
+                    node = base36encode(node)
                 out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
         if qtype in ['PTR', 'ANY'] and qname.endswith('.in-addr.arpa'):
@@ -209,8 +285,11 @@ def parse(prefixes, rtree, fd, out):
             node=rtree.search_best(str(ipv4))
             if node:
                 range, key = node.data['prefix'], prefixes[node.data['prefix']]
-                node = ipv4.value - range.value
-                node = base36encode(node)
+                if key['replace']:
+                    node = str(ipv4).replace('.',key['replace'])
+                else:
+                    node = ipv4.value - range.value
+                    node = base36encode(node)
                 out.write("DATA\t%s\t%s\tPTR\t%d\t%s\t%s%s%s.%s\n" % \
                     (qname, qclass, key['ttl'], qid, key['prefix'], node, key['postfix'], key['forward']))
         if qtype in ['SOA', 'ANY', 'NS']:
@@ -245,15 +324,18 @@ def parse(prefixes, rtree, fd, out):
 
 def parse_config(config_path):
     with open(config_path) as config_file:
-        config_dict = yaml.load(config_file)
+        config_dict = yaml.safe_load(config_file)
 
     defaults = config_dict.get('defaults', {})
+    if not 'replace' in defaults:
+        defaults['replace']=None
     prefixes = { netaddr.IPNetwork(prefix) : HierDict(defaults, info) for prefix, info in config_dict['prefixes'].items()}
 
     for zone in prefixes:
+        ip_net = ipaddress.ip_network(zone.cidr, strict=False)
+        prefixes[zone]['version']=ip_net.version
         if not 'domain' in prefixes[zone]:
-            from IPy import IP
-            prefixes[zone]['domain']=IP(str(zone.cidr)).reverseName()[:-1]
+            prefixes[zone]['domain']=get_reverse_pointer(ip_net)[:-1]
 
     rtree=radix.Radix()
 

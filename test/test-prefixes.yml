@@ -16,3 +16,10 @@ prefixes:
     prefix: 'u'
     postfix: '-i1'
     forward: 'example.com'
+  '192.168.0.0/16':
+    prefix: ''
+    postfix: ''
+    forward: 'example.net'
+    replace: '-'
+  # you can have no prefix/postfix with replace, 
+  # but not on the same forward as non-replace
